@@ -152,6 +152,10 @@ if submit_button and team_name:
         st.write("Team info:")
         st.json(team_info)
         
+        # Show TheSportsDB direct URL if available
+        if team_info and "thesportsdb_url" in team_info:
+            st.write(f"TheSportsDB page: {team_info['thesportsdb_url']}")
+        
         # Test multiple potential logo sources
         st.write("### Testing different logo sources:")
         
@@ -159,8 +163,18 @@ if submit_button and team_name:
         if logo_url:
             st.write("#### Main logo:")
             try:
+                # Add User-Agent header to avoid blocking
+                headers = {"User-Agent": "Mozilla/5.0"}
                 st.image(logo_url, width=100)
                 st.write("✅ Main logo loaded successfully!")
+                
+                # Try HEAD request to check URL status
+                try:
+                    head_response = requests.head(logo_url, timeout=2, headers=headers)
+                    st.write(f"Status code: {head_response.status_code}")
+                    st.write(f"Content type: {head_response.headers.get('Content-Type', 'Unknown')}")
+                except Exception as e:
+                    st.write(f"HEAD request failed: {str(e)}")
             except Exception as e:
                 st.write(f"❌ Error loading main logo: {str(e)}")
         else:
