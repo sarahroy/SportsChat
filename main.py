@@ -1,17 +1,16 @@
 import os
 import requests
 from dotenv import load_dotenv
-from langchain_openai import OpenAI
+# Update this import to use the new package
+from langchain_ollama import OllamaLLM
 
 # Load environment variables
 load_dotenv()
-#print("API Key:", os.getenv("OPENAI_API_KEY"))
 # API Keys
 THESPORTSDB_API_KEY = os.getenv("THESPORTSDB_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# OpenAI Client
-llm = OpenAI(api_key=OPENAI_API_KEY, model_name="gpt-3.5-turbo")
+# Ollama Client with updated class
+llm = OllamaLLM(model="llama3.2")  # Use the updated class
 
 def get_team_info(team_name):
     """Fetch team details from TheSportsDB API"""
@@ -30,7 +29,7 @@ def get_team_info(team_name):
         return None
 
 def generate_response(team_name):
-    """Get team info and pass it to OpenAI for a conversational reply"""
+    """Get team info and pass it to Ollama for a conversational reply"""
     team_info = get_team_info(team_name)
     
     if team_info:
