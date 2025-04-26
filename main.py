@@ -338,6 +338,8 @@ def generate_response(team_name, info_type="all"):
         return "Sorry, I couldn't find that team."
     
     team_id = team_info["team_id"]
+    team_league = team_info["league"].lower()
+    
     prompt_data = {
         "team": team_info["team"],
         "league": team_info["league"],
@@ -350,22 +352,85 @@ def generate_response(team_name, info_type="all"):
     if info_type in ["all", "results"]:
         results = get_latest_results(team_id)
         if results:
-            prompt_data["latest_results"] = results
-            has_real_data = True
+            # Validate results actually belong to this team
+            valid_results = []
+            for result in results:
+                if (team_info["team"].lower() in result["home_team"].lower() or 
+                    team_info["team"].lower() in result["away_team"].lower()):
+                    valid_results.append(result)
+            
+            if valid_results:
+                prompt_data["latest_results"] = valid_results
+                has_real_data = True
     
     if info_type in ["all", "fixtures"]:
         fixtures = get_upcoming_matches(team_id)
         if fixtures:
-            prompt_data["upcoming_fixtures"] = fixtures
-            has_real_data = True
+            # Validate fixtures actually involve this team
+            valid_fixtures = []
+            for fixture in fixtures:
+                if (team_info["team"].lower() in fixture["home_team"].lower() or 
+                    team_info["team"].lower() in fixture["away_team"].lower()):
+                    valid_fixtures.append(fixture)
+            
+            if valid_fixtures:
+                prompt_data["upcoming_fixtures"] = valid_fixtures
+                has_real_data = True
     
     if info_type in ["all", "standings"]:
         league_id = get_league_id(team_id)
         if league_id:
             standings = get_league_standings(league_id)
             if standings:
-                prompt_data["standings"] = standings
-                has_real_data = True
+                # Verify standings are for the right league
+                # Check if at least one team in standings belongs to the same sport
+                sport_match = False
+                for standing_team in standings:
+                    if standing_team["team"].lower() == team_info["team"].lower():
+                        sport_match = True
+                        break
+                
+                # Additional check: verify league type matches
+                league_type_match = False
+                league_keywords = {
+                    "basketball": ["nba", "basketball", "ncaa"],
+                    "soccer": ["premier league", "football", "soccer", "la liga", "serie a", "bundesliga"],
+                    "hockey": ["nhl", "hockey", "ice"],
+                    "baseball": ["mlb", "baseball"],
+                    "american football": ["nfl", "football"]
+                }
+                
+                # Determine team's sport category
+                team_sport = None
+                for sport, keywords in league_keywords.items():
+                    if any(keyword in team_league for keyword in keywords):
+                        team_sport = sport
+                        break
+                
+                # Check if standings match the sport category
+                if team_sport:
+                    for standing_team in standings[:1]:  # Just check the first team
+                        # If we find matching teams or team names in standings
+                        standing_team_name = standing_team["team"].lower()
+                        
+                        # Check if the standing team appears in our hardcoded lists for that sport
+                        for sport, keywords in league_keywords.items():
+                            if sport == team_sport:
+                                continue  # Skip the current sport
+                            
+                            # If this team appears to be from a different sport, it's a mismatch
+                            if any(keyword in standing_team_name for keyword in keywords):
+                                league_type_match = False
+                                break
+                        else:
+                            league_type_match = True
+                
+                if sport_match or league_type_match:
+                    prompt_data["standings"] = standings
+                    has_real_data = True
+                else:
+                    # Add a warning that standings might be incorrect
+                    prompt_data["standings_warning"] = True
     
     # Construct a detailed prompt based on available data
     prompt = f"A user asked about {prompt_data['team']} from {prompt_data['league']}. "
@@ -390,13 +455,15 @@ def generate_response(team_name, info_type="all"):
         prompt += "\nCurrent standings in the league:\n"
         for team in prompt_data["standings"][:5]:  # Show top 5
             prompt += f"- {team['position']}. {team['team']} - {team['points']} points ({team['played']} games)\n"
+    elif "standings_warning" in prompt_data:
+        prompt += "\nI found standings data but it appears to be for a different league/sport, so I'm not including it.\n"
     else:
         prompt += "\nLeague standings are not available at this time.\n"
     
     if not has_real_data:
         prompt += "\nNote that there appears to be limited real-time data available for this team. Provide general information about the team and acknowledge the limited data availability."
     
-    prompt += "\nCreate a conversational response in a friendly sports announcer style, focusing on the most recent and upcoming events."
+    prompt += f"\nCreate a conversational response in a friendly sports announcer style, focusing on the most recent and upcoming events. IMPORTANT: This team is from {prompt_data['league']}, so only include information relevant to this team and its league. DO NOT mention standings or results from different sports leagues."
     
     response = llm.invoke(prompt)
     return response
