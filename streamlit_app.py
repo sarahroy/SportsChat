@@ -19,29 +19,155 @@ with st.sidebar:
         ["All Information", "Team Information", "Latest Results", "Upcoming Fixtures", "League Standings"]
     )
     
-    st.header("Examples")
-    st.subheader("Soccer/Football:")
-    if st.button("Arsenal"):
-        st.session_state.team_input = "Arsenal"
-    if st.button("Manchester United"):
-        st.session_state.team_input = "Manchester United"
-    if st.button("Liverpool"):
-        st.session_state.team_input = "Liverpool"
+    st.header("Select a Team")
     
-    st.subheader("Basketball:")
-    if st.button("Los Angeles Lakers"):
-        st.session_state.team_input = "Los Angeles Lakers"
-    if st.button("Boston Celtics"):
-        st.session_state.team_input = "Boston Celtics"
+    # Create a dropdown for leagues
+    league_options = [
+        "English Premier League (Soccer)",
+        "NBA (Basketball)",
+        "NFL (American Football)",
+        "MLB (Baseball)",
+        "NHL (Hockey)"
+    ]
     
-    st.subheader("Hockey:")
-    if st.button("Toronto Maple Leafs"):
-        st.session_state.team_input = "Toronto Maple Leafs"
+    selected_league = st.selectbox("Select a League", league_options)
     
-    st.subheader("American Football:")
-    if st.button("Kansas City Chiefs"):
-        st.session_state.team_input = "Kansas City Chiefs"
+    # Define teams by league with their full names and nicknames
+    league_teams = {
+        "English Premier League (Soccer)": {
+            "Arsenal": "Arsenal",
+            "Aston Villa": "Aston Villa",
+            "Bournemouth": "Bournemouth",
+            "Brentford": "Brentford",
+            "Brighton": "Brighton",
+            "Burnley": "Burnley",
+            "Chelsea": "Chelsea",
+            "Crystal Palace": "Crystal Palace",
+            "Everton": "Everton",
+            "Fulham": "Fulham",
+            "Ipswich": "Ipswich",
+            "Liverpool": "Liverpool",
+            "Man City": "Manchester City",
+            "Man United": "Manchester United",
+            "Newcastle": "Newcastle United",
+            "Nottingham": "Nottingham Forest",
+            "Tottenham": "Tottenham Hotspur",
+            "West Ham": "West Ham United",
+            "Wolves": "Wolverhampton"
+        },
+        "NBA (Basketball)": {
+            "Lakers": "Los Angeles Lakers",
+            "Celtics": "Boston Celtics",
+            "Warriors": "Golden State Warriors",
+            "Bulls": "Chicago Bulls",
+            "Heat": "Miami Heat",
+            "Knicks": "New York Knicks",
+            "76ers": "Philadelphia 76ers",
+            "Suns": "Phoenix Suns",
+            "Nets": "Brooklyn Nets",
+            "Clippers": "LA Clippers",
+            "Mavs": "Dallas Mavericks",
+            "Bucks": "Milwaukee Bucks",
+            "Raptors": "Toronto Raptors",
+            "Nuggets": "Denver Nuggets",
+            "Hawks": "Atlanta Hawks",
+            "Spurs": "San Antonio Spurs"
+        },
+        "NFL (American Football)": {
+            "Chiefs": "Kansas City Chiefs",
+            "49ers": "San Francisco 49ers",
+            "Cowboys": "Dallas Cowboys",
+            "Eagles": "Philadelphia Eagles",
+            "Patriots": "New England Patriots",
+            "Packers": "Green Bay Packers",
+            "Bills": "Buffalo Bills",
+            "Ravens": "Baltimore Ravens",
+            "Buccaneers": "Tampa Bay Buccaneers",
+            "Rams": "Los Angeles Rams",
+            "Steelers": "Pittsburgh Steelers",
+            "Seahawks": "Seattle Seahawks",
+            "Bears": "Chicago Bears",
+            "Broncos": "Denver Broncos",
+            "Vikings": "Minnesota Vikings",
+            "Saints": "New Orleans Saints"
+        },
+        "MLB (Baseball)": {
+            "Yankees": "New York Yankees",
+            "Red Sox": "Boston Red Sox",
+            "Dodgers": "Los Angeles Dodgers",
+            "Cubs": "Chicago Cubs",
+            "Giants": "San Francisco Giants",
+            "Cardinals": "St. Louis Cardinals",
+            "Braves": "Atlanta Braves",
+            "Astros": "Houston Astros",
+            "Mets": "New York Mets",
+            "Blue Jays": "Toronto Blue Jays",
+            "Phillies": "Philadelphia Phillies",
+            "Padres": "San Diego Padres",
+            "D-backs": "Arizona Diamondbacks",
+            "Mariners": "Seattle Mariners",
+            "Twins": "Minnesota Twins",
+            "Tigers": "Detroit Tigers"
+        },
+        "NHL (Hockey)": {
+            "Maple Leafs": "Toronto Maple Leafs",
+            "Canadiens": "Montreal Canadiens",
+            "Rangers": "New York Rangers",
+            "Bruins": "Boston Bruins",
+            "Blackhawks": "Chicago Blackhawks",
+            "Red Wings": "Detroit Red Wings",
+            "Penguins": "Pittsburgh Penguins",
+            "Lightning": "Tampa Bay Lightning",
+            "Oilers": "Edmonton Oilers",
+            "Flames": "Calgary Flames",
+            "Canucks": "Vancouver Canucks",
+            "Golden Knights": "Vegas Golden Knights",
+            "Avalanche": "Colorado Avalanche",
+            "Capitals": "Washington Capitals",
+            "Flyers": "Philadelphia Flyers",
+            "Kraken": "Seattle Kraken"
+        }
+    }
     
+    # Get teams for the selected league
+    teams_for_league = league_teams.get(selected_league, {})
+    team_nicknames = list(teams_for_league.keys())
+    
+    # Display team dropdown with logos
+    selected_nickname = st.selectbox(
+        f"Select a {selected_league.split(' ')[0]} Team:",
+        team_nicknames,
+        format_func=lambda x: x
+    )
+    
+    # Get the full team name from the nickname
+    if selected_nickname:
+        full_team_name = teams_for_league[selected_nickname]
+        
+        # Get logo URL
+        team_logo = sports_app.get_team_logo(full_team_name)
+        
+        # Display logo and team name
+        st.write("Selected Team:")
+        
+        # Create a container with columns for the logo and team name
+        cols = st.columns([1, 3])
+        with cols[0]:
+            if team_logo:
+                st.image(team_logo, width=70)
+            else:
+                sport_icon = get_sport_icon(selected_league)
+                st.markdown(f"<h1 style='font-size: 2.5rem; margin: 0;'>{sport_icon}</h1>", unsafe_allow_html=True)
+        
+        with cols[1]:
+            st.markdown(f"<h3 style='margin-top:10px;'>{full_team_name}</h3>", unsafe_allow_html=True)
+        
+        # Add a Get Info button
+        if st.button("Get Info About This Team"):
+            st.session_state.team_input = full_team_name
+    
+    # Keep the Clear Chat History button at the bottom
+    st.markdown("<hr>", unsafe_allow_html=True)
     if st.button("Clear Chat History"):
         st.session_state.chat_history = []
         st.session_state.team_input = ""
@@ -80,23 +206,25 @@ with chat_container:
             st.markdown(f"**You:** {entry['content']}")
             st.markdown("---")
         else:
-            col1, col2 = st.columns([1, 10])
+            col1, col2 = st.columns([2, 8])  # Changed from [1, 10] to [2, 8] to give more space for the logo
             with col1:
                 if "logo" in entry and entry["logo"]:
                     try:
                         # Add headers to avoid some blocking issues
                         headers = {"User-Agent": "Mozilla/5.0"}
-                        st.image(entry["logo"], width=50)
+                        # Increase logo size from 50 to 100 pixels
+                        st.image(entry["logo"], width=200)
                     except Exception as e:
                         # If logo doesn't load, use sport-specific icon based on league
                         league = entry.get("league", "") if "league" in entry else ""
                         icon = get_sport_icon(league)
-                        st.markdown(f"<h1 style='font-size: 2.5rem; margin: 0;'>{icon}</h1>", unsafe_allow_html=True)
+                        # Make the emoji larger too
+                        st.markdown(f"<h1 style='font-size: 8rem; margin: 0;'>{icon}</h1>", unsafe_allow_html=True)
                         # Optional: add debug comment for understanding why it failed
                         st.markdown(f"<!-- Logo failed: {str(e)} -->", unsafe_allow_html=True)
                 else:
                     # No logo, display a generic sports icon
-                    st.markdown("<h1 style='font-size: 2.5rem; margin: 0;'>🏆</h1>", unsafe_allow_html=True)
+                    st.markdown("<h1 style='font-size: 4rem; margin: 0;'>🏆</h1>", unsafe_allow_html=True)
             with col2:
                 st.markdown(f"**SportsChat:** {entry['content']}")
             st.markdown("---")
