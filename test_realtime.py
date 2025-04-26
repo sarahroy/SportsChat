@@ -6,6 +6,8 @@ import json
 
 # Load environment variables
 load_dotenv()
+# Add this line to get the API key
+THESPORTSDB_API_KEY = os.getenv("THESPORTSDB_API_KEY")
 
 def test_team_updates(team_name):
     """Test real-time updates for a specific team"""
@@ -162,10 +164,3 @@ if __name__ == "__main__":
     for team in teams_to_test:
         test_team_updates(team)
         print("\n" + "="*50 + "\n")
-        
-        # In your generate_response function, add:
-        if not fixtures:  # No upcoming fixtures
-            prompt += "\nNo upcoming fixtures were found in the database for this team. "
-
-        if league_id == "4328" and team_info["league"] != "English Premier League":
-            prompt += "\nNote: League standings data is limited for this league in the free API. "
