@@ -8,8 +8,38 @@ if "chat_history" not in st.session_state:
 
 st.set_page_config(page_title="SportsChat", page_icon="🏆", layout="wide")
 
+# Update the title and description
 st.title("SportsChat 🏆")
-st.write("Get real-time sports updates in a conversational format")
+st.write("Your AI sports assistant for NFL, NBA, MLB, NHL and Premier League. Ask about teams, players, records, or any sports trivia!")
+
+# Add a section with example questions
+with st.expander("Example questions you can ask"):
+    st.markdown("""
+    * Who won the most Super Bowl rings?
+    * Which team has the most NBA championships?
+    * Tell me about Manchester United's history
+    * Who holds the MLB home run record?
+    * When was the last time the Chicago Cubs won the World Series?
+    * Which quarterback has thrown the most touchdown passes?
+    * Who are the greatest NHL players of all time?
+    * What team has the most English Premier League titles?
+    * Tell me about Michael Jordan's career achievements
+    * What were the biggest upsets in Super Bowl history?
+    """)
+
+# Add an "About" expander
+with st.expander("About SportsChat"):
+    st.markdown("""
+    **SportsChat** is a sports AI assistant that can answer questions about:
+    
+    * **Teams**: Get information, latest results, upcoming fixtures and league standings
+    * **Players**: Learn about current and legendary players across major leagues
+    * **Records**: Find out about championships, individual achievements and historical moments
+    * **Live Data**: Get recent game results and upcoming fixtures
+    * **History**: Explore the rich history of NFL, NBA, MLB, NHL and English Premier League
+    
+    SportsChat uses real-time data for team information and LLM capabilities to answer general sports questions from its knowledge base.
+    """)
 
 # Sidebar for options
 with st.sidebar:
@@ -257,102 +287,90 @@ st.markdown('<div class="input-container">', unsafe_allow_html=True)
 # Column for input field
 col1, col2 = st.columns([5, 1])
 with col1:
-    team_name = st.text_input("Enter a team name:", 
+    # Update the placeholder text for input
+    team_name = st.text_input("Ask about a team or any sports question:", 
                              value=st.session_state.team_input, 
-                             placeholder="e.g., Arsenal, Los Angeles Lakers",
+                             placeholder="e.g., Arsenal, Who won the most Super Bowl rings?",
                              key="team_input_field")
 with col2:
     # Add a small spacer to align the button with the input field
     st.write("")
-    submit_button = st.button("Get Info")
+    # Update the button label
+    submit_button = st.button("Ask SportsChat")
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 if submit_button and team_name:
-    # Get team info first
-    team_info = sports_app.get_team_info(team_name)
-    logo_url = team_info.get("logo", "") if team_info else ""
-    
-    # Debug the logo URL with more comprehensive information
-    with st.expander("Debug Information"):
-        st.write(f"Team name: {team_name}")
-        st.write(f"Logo URL: {logo_url}")
-        st.write("Team info:")
-        st.json(team_info)
-        
-        # Show TheSportsDB direct URL if available
-        if team_info and "thesportsdb_url" in team_info:
-            st.write(f"TheSportsDB page: {team_info['thesportsdb_url']}")
-        
-        # Test multiple potential logo sources
-        st.write("### Testing different logo sources:")
-        
-        # First try the main logo
-        if logo_url:
-            st.write("#### Main logo:")
-            try:
-                # Add User-Agent header to avoid blocking
-                headers = {"User-Agent": "Mozilla/5.0"}
-                st.image(logo_url, width=100)
-                st.write("✅ Main logo loaded successfully!")
-                
-                # Try HEAD request to check URL status
-                try:
-                    head_response = requests.head(logo_url, timeout=2, headers=headers)
-                    st.write(f"Status code: {head_response.status_code}")
-                    st.write(f"Content type: {head_response.headers.get('Content-Type', 'Unknown')}")
-                except Exception as e:
-                    st.write(f"HEAD request failed: {str(e)}")
-            except Exception as e:
-                st.write(f"❌ Error loading main logo: {str(e)}")
-        else:
-            st.write("❌ No main logo URL found")
-            
-        # Test multiple potential sources
-        if team_info:
-            team_name_clean = team_info["team"].lower().replace(" ", "-")
-            team_id = team_info["team_id"]
-            league = team_info.get("league", "")
-            
-            st.write("#### Alternative logo sources:")
-            alt_sources = [
-                ("TheSportsDB Badge", f"https://www.thesportsdb.com/images/media/team/badge/{team_id}.png"),
-                ("TheSportsDB Logo", f"https://www.thesportsdb.com/images/media/team/logo/{team_name_clean}.png"),
-                ("ESPN Logo", f"https://a.espncdn.com/combiner/i?img=/i/teamlogos/soccer/500/{team_name_clean}.png"),
-                ("Premier League (if applicable)", f"https://resources.premierleague.com/premierleague/badges/t{team_id}.svg"),
-            ]
-            
-            for source_name, url in alt_sources:
-                st.write(f"**{source_name}**: {url}")
-                try:
-                    st.image(url, width=80)
-                    st.write(f"✅ {source_name} loaded successfully!")
-                    
-                    # If main logo failed but this one works, use it
-                    if not logo_url:
-                        st.write("Using this as the main logo")
-                        logo_url = url
-                except:
-                    st.write(f"❌ {source_name} failed to load")
+    # First, check if this appears to be a question (contains a question word or ends with '?')
+    question_words = ["who", "what", "when", "where", "why", "how", "which", "can", "did", "does", "is", "are", "will"]
+    is_question = team_name.lower().split()[0] in question_words or team_name.endswith('?') or len(team_name.split()) > 5
     
     # Add user query to chat history
     st.session_state.chat_history.append({
         "role": "user",
-        "content": f"Tell me about {team_name} ({info_type.lower()})"
+        "content": team_name
     })
     
-    with st.spinner(f"Getting info about {team_name}..."):
-        response = sports_app.generate_response(team_name, info_map[info_type])
-        
-        # Add response to chat history with logo and league info
-        st.session_state.chat_history.append({
-            "role": "assistant",
-            "content": response,
-            "logo": logo_url,
-            "league": team_info.get("league", "") if team_info else ""
-        })
+    # Initialize team_info to None before the if/else branches
+    team_info = None
+    
+    with st.spinner(f"Getting information..."):
+        if is_question:
+            # This is likely a general sports question
+            response = sports_app.generate_general_sports_response(team_name)
+            
+            # Add generic sport logo based on the question content
+            sport_type = "unknown"
+            if any(word in team_name.lower() for word in ["nfl", "football", "super bowl", "touchdown"]):
+                sport_type = "NFL (American Football)"
+            elif any(word in team_name.lower() for word in ["nba", "basketball", "dunk", "court"]):
+                sport_type = "NBA (Basketball)"
+            elif any(word in team_name.lower() for word in ["mlb", "baseball", "homerun", "pitcher"]):
+                sport_type = "MLB (Baseball)"
+            elif any(word in team_name.lower() for word in ["nhl", "hockey", "puck", "stanley cup"]):
+                sport_type = "NHL (Hockey)"
+            elif any(word in team_name.lower() for word in ["epl", "premier league", "soccer", "football", "goal"]):
+                sport_type = "English Premier League (Soccer)"
+            
+            logo_url = ""  # Default empty logo
+            league_name = sport_type
+            
+            # Add response to chat history
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": response,
+                "logo": logo_url,
+                "league": league_name
+            })
+        else:
+            # Original team-based flow
+            team_info = sports_app.get_team_info(team_name)
+            logo_url = team_info.get("logo", "") if team_info else ""
+            
+            if team_info:
+                # Generate response and add to chat history as before
+                response = sports_app.generate_response(team_name, info_map[info_type])
+                
+                # Add response to chat history with logo and league info
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": response,
+                    "logo": logo_url,
+                    "league": team_info.get("league", "")
+                })
+            else:
+                # Handle case where team is not found but it's not detected as a question
+                # Try generating a general response instead
+                response = sports_app.generate_general_sports_response(team_name)
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": response,
+                    "logo": "",
+                    "league": "unknown"
+                })
         
         # After adding the response to the chat history
+        # Only check for fixtures if team_info exists
         if team_info:
             # Check if there's at least one relevant fixture
             has_relevant_fixtures = False
@@ -367,8 +385,7 @@ if submit_button and team_name:
                 if not has_relevant_fixtures and fixtures:
                     st.warning(f"⚠️ Some fixtures shown may not be relevant to {team_info['team']}. TheSportsDB API sometimes returns generic fixtures when team-specific data is unavailable.")
         
-        # Show raw data in expandable section
-        if team_info:
+            # Show raw data in expandable section, but only if team_info exists
             with st.expander("Raw Data"):
                 st.write("Team Info:")
                 st.json(team_info)
@@ -379,11 +396,11 @@ if submit_button and team_name:
                     st.json(results)
                     
                     # Debug to check for team name consistency
-                    team_name = team_info["team"]
-                    st.write(f"Checking if results are relevant to {team_name}:")
+                    team_name_val = team_info["team"]
+                    st.write(f"Checking if results are relevant to {team_name_val}:")
                     for result in results:
-                        is_relevant = (team_name.lower() in result["home_team"].lower() or 
-                                      team_name.lower() in result["away_team"].lower())
+                        is_relevant = (team_name_val.lower() in result["home_team"].lower() or 
+                                      team_name_val.lower() in result["away_team"].lower())
                         st.write(f"- {result['home_team']} vs {result['away_team']}: {'✅' if is_relevant else '❌'}")
                 
                 if info_type in ["All Information", "Upcoming Fixtures"]:
@@ -392,10 +409,10 @@ if submit_button and team_name:
                     st.json(fixtures)
                     
                     # Debug to check for team name consistency
-                    st.write(f"Checking if fixtures are relevant to {team_name}:")
+                    st.write(f"Checking if fixtures are relevant to {team_name_val}:")
                     for fixture in fixtures:
-                        is_relevant = (team_name.lower() in fixture["home_team"].lower() or 
-                                      team_name.lower() in fixture["away_team"].lower())
+                        is_relevant = (team_name_val.lower() in fixture["home_team"].lower() or 
+                                      team_name_val.lower() in fixture["away_team"].lower())
                         st.write(f"- {fixture['home_team']} vs {fixture['away_team']}: {'✅' if is_relevant else '❌'}")
                 
                 if info_type in ["All Information", "League Standings"]:

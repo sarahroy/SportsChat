@@ -766,141 +766,49 @@ def get_league_id(team_id):
         return data["teams"][0].get("idLeague")
     return None
 
-def generate_response(team_name, info_type="all"):
+def generate_response(user_query, info_type="all"):
+    """Generate a response to sports-related queries"""
+    # Check if this is a team-specific query
+    team_info = get_team_info(user_query)
+    
+    if team_info:
+        # Continue with existing team-specific logic
+        return generate_team_response(user_query, info_type)
+    else:
+        # This is a general sports question
+        return generate_general_sports_response(user_query)
+
+def generate_team_response(team_name, info_type="all"):
     """Get team info and pass it to Ollama for a conversational reply"""
     team_info = get_team_info(team_name)
     
     if not team_info:
         return "Sorry, I couldn't find that team."
     
-    team_id = team_info["team_id"]
-    team_league = team_info["league"].lower()
+    # Rest of your existing team response code
+    # ...
+
+def generate_general_sports_response(query):
+    """Generate response for general sports questions"""
+    # Format a prompt for the LLM with the user's query
+    prompt = f"""
+You are SportsChat, an AI sports announcer specializing in the NFL, NHL, MLB, NBA, and English Premier League.
+
+The user has asked: "{query}"
+
+Answer the query comprehensively with your sports knowledge. Include:
+- Relevant statistics and historical context
+- Player achievements and records if applicable
+- Team histories if relevant
+- Recent developments in that sports topic
+- Citations to well-known sports events or moments
+
+Use a conversational, enthusiastic sports announcer style.
+
+Important: If the question is about a specific athlete, team, game, or sports record, provide detailed information about that specific topic. If you don't have enough information about a specific detail, acknowledge this limitation but still provide the general information you do know.
+"""
     
-    prompt_data = {
-        "team": team_info["team"],
-        "league": team_info["league"],
-        "stadium": team_info["stadium"]
-    }
-    
-    # Check if we have real data for this team
-    has_real_data = False
-    
-    if info_type in ["all", "results"]:
-        results = get_latest_results(team_id)
-        if results:
-            # Validate results actually belong to this team
-            valid_results = []
-            for result in results:
-                if (team_info["team"].lower() in result["home_team"].lower() or 
-                    team_info["team"].lower() in result["away_team"].lower()):
-                    valid_results.append(result)
-            
-            if valid_results:
-                prompt_data["latest_results"] = valid_results
-                has_real_data = True
-    
-    if info_type in ["all", "fixtures"]:
-        fixtures = get_upcoming_matches(team_id)
-        if fixtures:
-            # Validate fixtures actually involve this team
-            valid_fixtures = []
-            for fixture in fixtures:
-                if (team_info["team"].lower() in fixture["home_team"].lower() or 
-                    team_info["team"].lower() in fixture["away_team"].lower()):
-                    valid_fixtures.append(fixture)
-            
-            if valid_fixtures:
-                prompt_data["upcoming_fixtures"] = valid_fixtures
-                has_real_data = True
-    
-    if info_type in ["all", "standings"]:
-        league_id = get_league_id(team_id)
-        if league_id:
-            standings = get_league_standings(league_id)
-            if standings:
-                # Verify standings are for the right league
-                # Check if at least one team in standings belongs to the same sport
-                sport_match = False
-                for standing_team in standings:
-                    if standing_team["team"].lower() == team_info["team"].lower():
-                        sport_match = True
-                        break
-                
-                # Additional check: verify league type matches
-                league_type_match = False
-                league_keywords = {
-                    "basketball": ["nba", "basketball", "ncaa"],
-                    "soccer": ["premier league", "football", "soccer", "la liga", "serie a", "bundesliga"],
-                    "hockey": ["nhl", "hockey", "ice"],
-                    "baseball": ["mlb", "baseball"],
-                    "american football": ["nfl", "football"]
-                }
-                
-                # Determine team's sport category
-                team_sport = None
-                for sport, keywords in league_keywords.items():
-                    if any(keyword in team_league for keyword in keywords):
-                        team_sport = sport
-                        break
-                
-                # Check if standings match the sport category
-                if team_sport:
-                    for standing_team in standings[:1]:  # Just check the first team
-                        # If we find matching teams or team names in standings
-                        standing_team_name = standing_team["team"].lower()
-                        
-                        # Check if the standing team appears in our hardcoded lists for that sport
-                        for sport, keywords in league_keywords.items():
-                            if sport == team_sport:
-                                continue  # Skip the current sport
-                            
-                            # If this team appears to be from a different sport, it's a mismatch
-                            if any(keyword in standing_team_name for keyword in keywords):
-                                league_type_match = False
-                                break
-                        else:
-                            league_type_match = True
-                
-                if sport_match or league_type_match:
-                    prompt_data["standings"] = standings
-                    has_real_data = True
-                else:
-                    # Add a warning that standings might be incorrect
-                    prompt_data["standings_warning"] = True
-    
-    # Construct a detailed prompt based on available data
-    prompt = f"A user asked about {prompt_data['team']} from {prompt_data['league']}. "
-    prompt += f"The team plays at {prompt_data['stadium']}. "
-    
-    if "latest_results" in prompt_data and prompt_data["latest_results"]:
-        prompt += "\nLatest results:\n"
-        for result in prompt_data["latest_results"]:
-            prompt += (f"- {result['date']}: {result['home_team']} {result['home_score']} - "
-                     f"{result['away_score']} {result['away_team']}\n")
-    else:
-        prompt += "\nNo recent match results available for this team.\n"
-    
-    if "upcoming_fixtures" in prompt_data and prompt_data["upcoming_fixtures"]:
-        prompt += "\nUpcoming fixtures:\n"
-        for fixture in prompt_data["upcoming_fixtures"]:
-            prompt += f"- {fixture['date']} {fixture['time']}: {fixture['home_team']} vs {fixture['away_team']} at {fixture['venue']}\n"
-    else:
-        prompt += "\nNo upcoming fixtures available for this team.\n"
-    
-    if "standings" in prompt_data and prompt_data["standings"]:
-        prompt += "\nCurrent standings in the league:\n"
-        for team in prompt_data["standings"][:5]:  # Show top 5
-            prompt += f"- {team['position']}. {team['team']} - {team['points']} points ({team['played']} games)\n"
-    elif "standings_warning" in prompt_data:
-        prompt += "\nI found standings data but it appears to be for a different league/sport, so I'm not including it.\n"
-    else:
-        prompt += "\nLeague standings are not available at this time.\n"
-    
-    if not has_real_data:
-        prompt += "\nNote that there appears to be limited real-time data available for this team. Provide general information about the team and acknowledge the limited data availability."
-    
-    prompt += f"\nCreate a conversational response in a friendly sports announcer style, focusing on the most recent and upcoming events. IMPORTANT: This team is from {prompt_data['league']}, so only include information relevant to this team and its league. DO NOT mention standings or results from different sports leagues."
-    
+    # Pass to the LLM
     response = llm.invoke(prompt)
     return response
 
